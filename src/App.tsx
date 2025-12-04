@@ -1,20 +1,29 @@
 // src/App.tsx
 import React, { useEffect } from "react";
 import AppRouter from "./router";
+import Navbar from "./components/Navbar";
+import { useAppSelector, useAppDispatch } from "./hooks";
+import { setAuthState } from "./features/auth/authSlice";
 
 const App: React.FC = () => {
-  useEffect(() => {
-    // If tokens exist on load, attempt to populate user
-    const access = localStorage.getItem("access_token");
-    const refresh = localStorage.getItem("refresh_token");
-    if (access && refresh) {
-      // dispatch getCurrentUser to populate user & roles
-      // store.dispatch(getCurrentUser());
-      // Instead, you should use useDispatch here if you want to dispatch
-    }
-  }, []);
+  const dispatch = useAppDispatch();
+  const token = useAppSelector(s => s.auth.token);
 
-  return <AppRouter />;
+  useEffect(() => {
+    const access = localStorage.getItem("access_token");
+    if (access && !token) {
+      dispatch(setAuthState({ token: access }));
+    }
+  }, [dispatch, token]);
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f9f9f9" }}>
+      {token && <Navbar />}
+      <div style={{ flex: 1 }}>
+        <AppRouter />
+      </div>
+    </div>
+  );
 };
 
 export default App;

@@ -1,76 +1,235 @@
 // src/pages/Dashboard.tsx
-import React from "react";
-import { useAppSelector } from "../hooks";
-import { selectAuth } from "../features/auth/authSlice";
-import { useNavigate } from "react-router-dom";
-import { authApi } from "../api/api";
-import { useRoleAccess } from "../utils/roleAccess";
-
+import React, { useEffect } from "react";
+import { useAppSelector, useAppDispatch } from "../hooks";
+import { selectAuth, getCurrentUser } from "../features/auth/authSlice";
+// import { authApi } from "../api/api";
 
 const Dashboard: React.FC = () => {
   const auth = useAppSelector(selectAuth);
-  const navigate = useNavigate();
-  const { isSuperAdmin, isAdmin, isUser } = useRoleAccess();
+  const dispatch = useAppDispatch();
 
-  const handleLogout = async () => {
-    try {
-      console.log("[Dashboard] Logout button clicked. Token:", localStorage.getItem("access_token"));
-      const res = await authApi.logout();
-      console.log("[Dashboard] Logout API response:", res);
-      if (res && (res.detail || res.success || res.status === "success")) {
-        localStorage.clear();
-        console.log("[Dashboard] Logout success, redirecting to /login");
-        navigate("/login");
-      } else {
-        alert("Logout failed: " + (res?.message || "Unknown error"));
-      }
-    } catch (err: any) {
-      console.error("[Dashboard] Logout error:", err);
-      alert("Logout failed: " + (err?.message || "Unknown error"));
+  useEffect(() => {
+    // If token exists but user data is missing, fetch user data
+    if (auth.token && !auth.user) {
+      console.log("[Dashboard] Token exists but no user data, fetching user...");
+      dispatch(getCurrentUser());
     }
-  };
+  }, [auth.token, auth.user, dispatch]);
 
-  // Dynamic tabs based on role
-  const tabs = [
-    { label: "Dashboard", path: "/dashboard", show: true },
-    { label: "Vehicles", path: "/vehicles", show: isSuperAdmin || isAdmin || isUser },
-    { label: "User Details", path: "/user-details", show: isSuperAdmin },
-    { label: "Super Admin", path: "/super-admin", show: isSuperAdmin },
-  ];
+
+  if (auth.loading) {
+    return (
+      <main style={{
+        flex: 1,
+        padding: '48px 32px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f8f9fa'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            border: '4px solid #e9ecef',
+            borderTop: '4px solid #667eea',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto'
+          }}></div>
+          <p style={{ marginTop: '16px', color: '#6c757d', fontSize: '14px' }}>Loading user data...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <div style={{ maxWidth: 800, margin: "48px auto", padding: 32, background: "#f9f9f9", borderRadius: 12, boxShadow: "0 2px 12px #0001" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>Dashboard</h1>
-        <button onClick={handleLogout} style={{ padding: "8px 20px", borderRadius: 6, background: "#e74c3c", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer" }}>Logout</button>
+    <main style={{
+      flex: 1,
+      padding: '32px 16px',
+      background: '#f8f9fa',
+      minHeight: 'auto',
+      position: 'relative',
+      overflow: 'hidden', // hide any scrollbars
+    }}>
+      {/* Hide scrollbars visually for Dashboard */}
+      <style>{`
+        main::-webkit-scrollbar { display: none; }
+        main { scrollbar-width: none; -ms-overflow-style: none; }
+      `}</style>
+      {/* Logout Button - Top Right (hidden for all users) */}
+      {/**
+      <button
+        onClick={handleLogout}
+        style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          padding: '10px 24px',
+          background: '#ef4444',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+          transition: 'all 0.2s ease',
+          zIndex: 1000
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#dc2626';
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#ef4444';
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+        }}
+      >
+        Logout
+      </button>
+      */}
+
+      <div style={{
+        maxWidth: '1200px',
+        margin: '0 auto'
+      }}>
+        {/* Header */}
+        <div style={{
+          marginBottom: '32px'
+        }}>
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: '#1a202c',
+            margin: '0 0 8px 0'
+          }}>
+            Dashboard
+          </h1>
+          <p style={{
+            fontSize: '16px',
+            color: '#718096',
+            margin: 0
+          }}>
+            Welcome back, {auth.user?.username ?? "User"}!
+          </p>
+        </div>
+
+        {/* User Info Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '24px',
+          marginBottom: '32px'
+        }}>
+          {/* Profile Card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '12px',
+            padding: '32px',
+            color: '#fff',
+            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+          }}>
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '16px'
+            }}>
+              👤
+            </div>
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              margin: '0 0 8px 0'
+            }}>
+              {auth.user?.username ?? "User"}
+            </h3>
+            <p style={{
+              fontSize: '14px',
+              opacity: 0.9,
+              margin: 0
+            }}>
+              User Profile
+            </p>
+          </div>
+
+          {/* Role Card */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '32px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '16px'
+            }}>
+              🎭
+            </div>
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              margin: '0 0 8px 0',
+              color: '#1a202c'
+            }}>
+              {auth.user?.role?.replace('_', ' ') ?? "N/A"}
+            </h3>
+            <p style={{
+              fontSize: '14px',
+              color: '#718096',
+              margin: 0
+            }}>
+              User Role
+            </p>
+          </div>
+
+          {/* Status Card */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '32px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '16px'
+            }}>
+              ✅
+            </div>
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              margin: '0 0 8px 0',
+              color: '#1a202c'
+            }}>
+              Active
+            </h3>
+            <p style={{
+              fontSize: '14px',
+              color: '#718096',
+              margin: 0
+            }}>
+              Account Status
+            </p>
+          </div>
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 16, marginBottom: 32 }}>
-        {tabs.filter(tab => tab.show).map(tab => (
-          <button
-            key={tab.path}
-            onClick={() => navigate(tab.path)}
-            style={{
-              padding: "10px 24px",
-              borderRadius: 6,
-              border: "none",
-              background: "#3498db",
-              color: "#fff",
-              fontWeight: 500,
-              cursor: "pointer",
-              boxShadow: "0 1px 4px #0001"
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      <div style={{ background: "#fff", borderRadius: 8, padding: 24, boxShadow: "0 1px 4px #0001" }}>
-        <p style={{ fontSize: 18, marginBottom: 8 }}>Welcome <b>{auth.user?.username ?? "user"}</b>!</p>
-        <div style={{ color: "#888", fontSize: 14, marginBottom: 8 }}>Role: <b>{auth.user?.role}</b></div>
-        <pre style={{ background: "#f4f4f4", padding: 12, borderRadius: 6, fontSize: 13 }}>{JSON.stringify(auth.user, null, 2)}</pre>
-      </div>
-    </div>
+    </main>
   );
 };
+
+// Add keyframe animation for spinner
+const styleSheet = document.createElement("style");
+styleSheet.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+if (!document.querySelector('style[data-spin-animation]')) {
+  styleSheet.setAttribute('data-spin-animation', 'true');
+  document.head.appendChild(styleSheet);
+}
 
 export default Dashboard;
