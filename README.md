@@ -9,21 +9,6 @@ This is a React + TypeScript + Vite frontend for the Vehicle Management System.
 - Protected routes for vehicles, user details, and admin pages
 - API integration with Django backend
 
-## Project Structure
-
-```
-src/
-  api/           # API logic (userApi, vehicleApi, etc.)
-  app/           # Redux store
-  components/    # Reusable components
-  features/      # Redux slices
-  pages/         # Main pages (Dashboard, Login, Vehicles, etc.)
-  styles/        # CSS files
-  utils/         # Utility hooks (roleAccess, etc.)
-  App.tsx        # Main app component
-  router.tsx     # App routing
-```
-
 ## Setup & Usage
 
 1. Install dependencies:
