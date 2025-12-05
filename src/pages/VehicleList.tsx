@@ -236,7 +236,7 @@ const VehicleList: React.FC = () => {
                 <thead>
                   <tr style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "#fff" }}>
                     <th style={thStyle}>Sr No.</th>
-                    <th style={thStyle}>ID</th>
+                    {/* <th style={thStyle}>ID</th> */}
                     <th style={thStyle}>Vehicle Number</th>
                     <th style={thStyle}>Type</th>
                     <th style={thStyle}>Model</th>
@@ -260,9 +260,9 @@ const VehicleList: React.FC = () => {
                           <strong style={{ color: "#4a5568" }}>{srNo}</strong>
                         </td>
 
-                        <td style={tdStyle}>
+                        {/* <td style={tdStyle}>
                           <span style={{ color: "#718096" }}>#{vehicle.id}</span>
-                        </td>
+                        </td> */}
 
                         <td style={tdStyle}>
                           <span style={{ color: "#2d3748", fontWeight: 500 }}>{vehicle.vehicle_number ?? "-"}</span>
