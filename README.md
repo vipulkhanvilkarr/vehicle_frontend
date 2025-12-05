@@ -9,6 +9,8 @@ This is a React + TypeScript + Vite frontend for the Vehicle Management System.
 - Protected routes for vehicles, user details, and admin pages
 - API integration with Django backend
 
+
+
 ## Setup & Usage
 
 1. Install dependencies:
@@ -24,12 +26,36 @@ This is a React + TypeScript + Vite frontend for the Vehicle Management System.
    npm run build
    ```
 
-## Environment Variables
 
-- Configure your backend API base URL in `.env`:
-  ```env
-  VITE_API_BASE=http://127.0.0.1:8000/api
-  ```
+## Environment Variables & CORS
+
+- For local development, set your backend API base URL in `.env`:
+   ```env
+   VITE_API_BASE=http://127.0.0.1:8000/api
+   ```
+
+- For production (e.g. Vercel), set `VITE_API_BASE` in the Vercel dashboard under Project Settings → Environment Variables. Do not commit `.env` to git.
+
+- Your backend must be configured to allow CORS for both your local frontend (e.g. `http://localhost:5173`) and your production frontend domain (e.g. `https://your-vercel-app.vercel.app`).
+
+- Example Django CORS settings:
+   ```python
+   CORS_ALLOWED_ORIGINS = [
+         "http://localhost:5173",
+         "https://your-vercel-app.vercel.app"
+   ]
+   ```
+
+- For React Router apps on Vercel, add a `vercel.json` file to your project root to handle client-side routing and prevent 404 errors on refresh:
+   ```json
+   {
+      "rewrites": [
+         { "source": "/(.*)", "destination": "/index.html" }
+      ]
+   }
+   ```
+
+This ensures your app works correctly in both local and production environments.
 
 ## Role-Based Access
 
