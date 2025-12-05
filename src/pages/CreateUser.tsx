@@ -24,7 +24,6 @@ const CreateUser: React.FC = () => {
     setNotification(null);
     try {
       const res = await userApi.createUser(form);
-      // Try to get a message from API response, fallback to default
       const msg = res?.message || res?.detail || "User created successfully!";
       setSuccess(msg);
       setNotification({ type: 'success', message: msg });
@@ -34,7 +33,27 @@ const CreateUser: React.FC = () => {
         navigate("/users");
       }, 2000);
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || "Failed to create user";
+      let msg = "Failed to create user";
+      const data = err?.response?.data;
+      if (data) {
+        if (typeof data === "string") {
+          msg = data;
+        } else if (data.detail) {
+          msg = data.detail;
+        } else if (data.username && Array.isArray(data.username)) {
+          msg = data.username.join(" ");
+        } else if (typeof data === "object") {
+          // Show first error from any field
+          const firstKey = Object.keys(data)[0];
+          if (Array.isArray(data[firstKey])) {
+            msg = data[firstKey].join(" ");
+          } else {
+            msg = String(data[firstKey]);
+          }
+        }
+      } else if (err?.message) {
+        msg = err.message;
+      }
       setError(msg);
       setNotification({ type: 'error', message: msg });
       setTimeout(() => setNotification(null), 3000);
