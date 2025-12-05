@@ -19,14 +19,18 @@ const UserDetails: React.FC = () => {
 //   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log("[UserDetails] useEffect triggered");
     fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
+    console.log("[UserDetails] fetchUsers called");
     try {
       const data = await userApi.getAllUsers();
+      console.log("[UserDetails] userApi.getAllUsers response", data);
       setUsers(data);
     } catch (err: any) {
+      console.log("[UserDetails] fetchUsers error", err);
       setError(err?.message || "Failed to fetch users");
     } finally {
       setLoading(false);

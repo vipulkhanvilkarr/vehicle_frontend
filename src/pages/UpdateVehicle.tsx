@@ -99,7 +99,7 @@ const UpdateVehicle: React.FC = () => {
       setError("Please fix validation errors before saving.");
       return;
     }
-    if (vehicleType === "" || !vehicleModel.trim() || !vehicleDescription.trim()) {
+    if (vehicleType === "" || !vehicleModel.trim()) {
       setError("Please fill all required fields.");
       return;
     }
@@ -313,23 +313,24 @@ const UpdateVehicle: React.FC = () => {
           {/* Vehicle Description */}
           <div>
             <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500, color: "#2d3748" }}>
-              Vehicle Description{" "}
+              Vehicle Description
+              {/* Not mandatory */}
             </label>
             <input
               type="text"
               value={vehicleDescription}
               onChange={(e) => setVehicleDescription(e.target.value)}
-              placeholder="Enter description"
+              placeholder="Enter description (optional)"
               maxLength={128}
               style={{
-            width: "100%",
-            padding: "12px 14px",
-            border: "2px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: 14,
-            outline: "none",
-            transition: "border-color 0.15s",
-            boxSizing: "border-box",
+                width: "100%",
+                padding: "12px 14px",
+                border: "2px solid #e2e8f0",
+                borderRadius: 8,
+                fontSize: 14,
+                outline: "none",
+                transition: "border-color 0.15s",
+                boxSizing: "border-box",
               }}
               onFocus={(e) => (e.currentTarget.style.borderColor = "#667eea")}
               onBlur={(e) => (e.currentTarget.style.borderColor = "#e2e8f0")}

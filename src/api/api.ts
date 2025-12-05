@@ -49,8 +49,9 @@ export const authApi = {
    * logout: POST /auth/logout/
    */
   logout: async () => {
-    const resp = await axiosInstance.post(`/auth/logout/`);
-    return resp.data;
+    // Only clear token on frontend, no backend API call
+    clearToken();
+    return true;
   },
 
   /**
@@ -58,6 +59,10 @@ export const authApi = {
    * Example path: GET /auth/user/
    */
   me: async () => {
+    const t = storage.getToken();
+    if (!t) {
+      throw new Error("No access token found. Cannot fetch user details.");
+    }
     const resp = await axiosInstance.get(`/current-user-details/`);
     return resp.data;
   },
