@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const token = useSelector((state: RootState) => state.auth.token);
+  const token = useSelector((state: RootState) => state.auth.accessToken);
   const location = useLocation();
   return token ? <>{children}</> : <Navigate to="/login" replace state={{ from: location }} />;
 };

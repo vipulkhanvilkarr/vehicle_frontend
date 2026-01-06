@@ -8,20 +8,22 @@ export interface User {
   id?: number | string;
   username?: string;
   email?: string;
-  roles?: string[]; // optional normalized roles array
+  // roles?: string[]; // optional normalized roles array
   role?: string;
   // add fields your backend returns
 }
 
 export interface AuthState {
-  token: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   user: User | null;
   loading: boolean;
   error: string | null;
 }
 
 const initialState: AuthState = {
-  token: typeof window !== "undefined" ? localStorage.getItem("access_token") : null,
+  accessToken: typeof window !== "undefined" ? localStorage.getItem("access_token") : null,
+  refreshToken: typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null,
   user: null,
   loading: false,
   error: null,
@@ -29,21 +31,30 @@ const initialState: AuthState = {
 
 /** Thunks */
 
-/** login: posts creds, stores token, then optionally fetches user */
+/** login: posts creds, stores tokens, then optionally fetches user */
 export const login = createAsyncThunk<
-  { token: string },
+  { accessToken: string; refreshToken: string },
   { username: string; password: string },
   { rejectValue: string }
 >("auth/login", async (creds, { dispatch, rejectWithValue }) => {
   try {
-    const data = await authApi.login(creds); // expects { token }
-    const token = (data && data.token) || data; // be flexible
-    if (!token) {
-      return rejectWithValue("No token returned from server");
+    const data = await authApi.login(creds);
+
+    // Check if login was successful
+    if (!data.success) {
+      return rejectWithValue(data.message || "Login failed");
     }
 
-    // Always use the latest token from login response
-    setToken(token);
+    // Extract tokens from nested response
+    const { access_token, refresh_token } = data.data.tokens;
+
+    if (!access_token) {
+      return rejectWithValue("No access token returned from server");
+    }
+
+    // Store both tokens
+    localStorage.setItem("refresh_token", refresh_token);
+    setToken(access_token);
 
     // optionally fetch current user (if endpoint exists)
     try {
@@ -52,9 +63,10 @@ export const login = createAsyncThunk<
       // ignore fetch user errors here - user stays null but token exists
     }
 
-    return { token };
+    return { accessToken: access_token, refreshToken: refresh_token };
   } catch (err: any) {
     const msg =
+      err?.response?.data?.message ||
       err?.response?.data?.detail ||
       err?.response?.data?.error ||
       JSON.stringify(err?.response?.data) ||
@@ -80,7 +92,15 @@ export const getCurrentUser = createAsyncThunk<User | null, void, { rejectValue:
       return user;
     } catch (err: any) {
       console.error("[getCurrentUser] Error fetching user:", err);
-      const msg = err?.response?.data?.detail || err?.message || "Failed to fetch user";
+
+      // If token is invalid/expired, clear it from localStorage
+      if (err?.response?.status === 401) {
+        console.warn("[getCurrentUser] Token is invalid or expired, clearing tokens...");
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+      }
+
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Failed to fetch user";
       return rejectWithValue(String(msg));
     }
   }
@@ -97,11 +117,13 @@ const slice = createSlice({
   initialState,
   reducers: {
     // if you ever need to set user/token manually
-    setAuthState(state, action: PayloadAction<{ token: string | null; user?: User | null }>) {
-      state.token = action.payload.token;
+    setAuthState(state, action: PayloadAction<{ accessToken: string | null; refreshToken?: string | null; user?: User | null }>) {
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken ?? state.refreshToken;
       state.user = action.payload.user ?? state.user;
-      if (!action.payload.token) {
+      if (!action.payload.accessToken) {
         state.user = null;
+        state.refreshToken = null;
       }
     },
   },
@@ -112,7 +134,8 @@ const slice = createSlice({
     })
       .addCase(login.fulfilled, (s, action) => {
         s.loading = false;
-        s.token = action.payload.token;
+        s.accessToken = action.payload.accessToken;
+        s.refreshToken = action.payload.refreshToken;
         s.error = null;
       })
       .addCase(login.rejected, (s, action) => {
@@ -127,17 +150,25 @@ const slice = createSlice({
         s.loading = false;
         s.user = action.payload;
       })
-      .addCase(getCurrentUser.rejected, (s) => {
+      .addCase(getCurrentUser.rejected, (s, action) => {
         s.loading = false;
         s.user = null;
-        // we won't necessarily set error here to avoid overwriting login errors
+        // If token was invalid (401), clear tokens from state as well
+        // The payload will contain the error message - check for 401-related errors
+        const errorMsg = (action.payload as string) || "";
+        if (errorMsg.includes("not valid") || errorMsg.includes("expired") || errorMsg.includes("Invalid token")) {
+          s.accessToken = null;
+          s.refreshToken = null;
+        }
       })
 
       .addCase(logout.fulfilled, (s) => {
-        s.token = null;
+        s.accessToken = null;
+        s.refreshToken = null;
         s.user = null;
         s.loading = false;
         s.error = null;
+        localStorage.removeItem("refresh_token");
       });
   },
 });
@@ -147,4 +178,4 @@ export default slice.reducer;
 
 /** selectors */
 export const selectAuth = (state: RootState) => state.auth;
-export const selectIsAuthenticated = (state: RootState) => Boolean(state.auth.token);
+export const selectIsAuthenticated = (state: RootState) => Boolean(state.auth.accessToken);

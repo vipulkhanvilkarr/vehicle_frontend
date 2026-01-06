@@ -1,7 +1,12 @@
 // src/api/api.ts
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
+import type { LoginResponse } from "../features/auth/types";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000/api";
+// Allow `.env` to contain just the host (e.g. http://127.0.0.1:8000 or https://example.com).
+// We normalize the host (trim trailing slashes) and append `/api` so the `.env` value
+// can be just the host without path fragments.
+const RAW_BASE = (import.meta.env.VITE_API_BASE as string) ?? "http://127.0.0.1:8000";
+const API_BASE = RAW_BASE.replace(/\/+$/g, "") + "/api";
 
 const storage = {
   getToken: () => localStorage.getItem("access_token"),
@@ -26,10 +31,11 @@ export const axiosInstance = axios.create({
  * NOTE: default uses Django TokenAuth header "Token <token>".
  * If your backend expects "Bearer <token>", change below to `Bearer ${t}`.
  */
-axiosInstance.interceptors.request.use((config) => {
+axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const t = storage.getToken();
-  if (t && config.headers) {
-    config.headers.Authorization = `Bearer ${t}`;
+  if (t) {
+    // Axios v1+ guarantees headers is always defined and is a plain object
+    config.headers["Authorization"] = `Bearer ${t}`;
   }
   return config;
 });
@@ -38,17 +44,20 @@ axiosInstance.interceptors.request.use((config) => {
 export const authApi = {
   /**
    * login: POST /auth/login/ with { username, password }
-   * Expect response { token: "..." }
+   * Expect response { success, message, data: { tokens: { access_token, refresh_token } } }
    */
-  login: async (payload: { username: string; password: string }) => {
-    const resp = await axios.post(`${API_BASE}/auth/login/`, payload);
-    return resp.data; // { token: "..." }
+  login: async (payload: { username: string; password: string }): Promise<LoginResponse> => {
+    // Use axios directly without interceptor to avoid sending old/invalid Authorization header
+    const resp = await axios.post(`${API_BASE}/auth/login/`, payload, {
+      headers: { "Content-Type": "application/json" }
+    });
+    return resp.data;
   },
 
   /**
    * logout: POST /auth/logout/
    */
-  logout: async () => {
+  logout: async (): Promise<boolean> => {
     // Only clear token on frontend, no backend API call
     clearToken();
     return true;
@@ -58,25 +67,28 @@ export const authApi = {
    * Optional: get current user (if your backend exposes such endpoint)
    * Example path: GET /auth/user/
    */
-  me: async () => {
+  me: async (): Promise<any> => {
     const t = storage.getToken();
     if (!t) {
       throw new Error("No access token found. Cannot fetch user details.");
     }
-    const resp = await axiosInstance.get(`/current-user-details/`);
+    const resp = await axiosInstance.get(`/auth/current-user-details/`);
     return resp.data;
   },
 };
 
 /** Helpers exported for use by auth slice */
 
-export const setToken = (token: string | null) => {
+export const setToken = (token: string | null): void => {
   storage.setToken(token);
-  if (token) axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  else delete axiosInstance.defaults.headers.common["Authorization"];
+  if (token) {
+    axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete axiosInstance.defaults.headers.common["Authorization"];
+  }
 };
 
-export const clearToken = () => {
+export const clearToken = (): void => {
   storage.clear();
   delete axiosInstance.defaults.headers.common["Authorization"];
 };

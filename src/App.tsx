@@ -7,12 +7,12 @@ import { setAuthState } from "./features/auth/authSlice";
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
-  const token = useAppSelector(s => s.auth.token);
+  const token = useAppSelector(s => s.auth.accessToken);
 
   useEffect(() => {
     const access = localStorage.getItem("access_token");
     if (access && !token) {
-      dispatch(setAuthState({ token: access }));
+      dispatch(setAuthState({ accessToken: access }));
     }
   }, [dispatch, token]);
 

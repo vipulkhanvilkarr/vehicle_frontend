@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { vehicleApi } from "../api/vehicleApi";
+import { userApi } from "../api/userApi";
 
 const vehicleTypes = [
   { value: 1, label: "Two Wheeler" },
@@ -8,18 +9,66 @@ const vehicleTypes = [
   { value: 3, label: "Four Wheeler" },
 ];
 
-const VEHICLE_NUMBER_REGEX = /^[A-Z0-9]+[0-9]{1,4}$/; 
+const VEHICLE_NUMBER_REGEX = /^[A-Z0-9]+[0-9]{1,4}$/;
+
+interface User {
+  id: number;
+  username: string;
+  name?: string; // Added name field
+  email?: string;
+  role?: string;
+}
 
 const CreateVehicle: React.FC = () => {
   const [vehicleNumber, setVehicleNumber] = useState("");
   const [vehicleType, setVehicleType] = useState<number | "">("");
   const [vehicleModel, setVehicleModel] = useState("");
   const [vehicleDescription, setVehicleDescription] = useState("");
+  const [customerId, setCustomerId] = useState<number | "">("");
+  const [customers, setCustomers] = useState<User[]>([]);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const data = await userApi.getGarageCustomers();
+      console.log("DEBUG: Raw API Data:", data);
+
+      let usersList: User[] = [];
+
+      if (Array.isArray(data)) {
+        usersList = data;
+      } else if (data && Array.isArray(data.results)) {
+        usersList = data.results;
+      } else if (data && Array.isArray(data.data)) {
+        usersList = data.data;
+      } else if (data && Array.isArray(data.users)) {
+        usersList = data.users;
+      }
+
+      if (usersList.length === 0) {
+        let debugMsg = "No customers found.";
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+            debugMsg += ` API returned object keys: [${Object.keys(data).join(", ")}]`;
+        }
+        setError(debugMsg); // Show in red box
+      }
+
+      setCustomers(usersList);
+    } catch (err: any) {
+      console.error("Failed to fetch customers", err);
+      const msg = err?.response?.data?.detail || err?.message || "Failed to load customers";
+        setError(`Failed to fetch customers: ${msg}`);
+    }
+  };
 
   // validate on the fly whenever vehicleNumber changes
   const validateVehicleNumber = (value: string) => {
@@ -57,6 +106,11 @@ const CreateVehicle: React.FC = () => {
       return;
     }
 
+    if (customerId === "") {
+      setError("Please select a customer");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setNotification(null);
@@ -67,14 +121,17 @@ const CreateVehicle: React.FC = () => {
         vehicle_type: typeof vehicleType === "string" ? Number(vehicleType) : vehicleType,
         vehicle_model: vehicleModel,
         vehicle_description: vehicleDescription,
+        customer_id: typeof customerId === "string" ? Number(customerId) : customerId,
       };
+      
       const res = await vehicleApi.create(payload);
       const msg = res?.message || res?.detail || "Vehicle created successfully!";
       setNotification({ type: "success", message: msg });
+      
       // Show loader for 1s, then redirect
       setTimeout(() => {
         setNotification(null);
-        setLoading(true);
+        setLoading(true); // keep loading state during redirect delay
         setTimeout(() => {
           setLoading(false);
           navigate("/vehicles");
@@ -231,6 +288,45 @@ const CreateVehicle: React.FC = () => {
             {validationError}
               </div>
             )}
+          </div>
+
+          {/* Customer Selection */}
+          <div>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: '#2d3748'
+            }}>
+              Select Customer
+              <span style={{ color: '#e53e3e', marginLeft: 4 }}>*</span>
+            </label>
+            <select
+              value={customerId}
+              onChange={e => setCustomerId(Number(e.target.value))}
+              required
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                border: '2px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                transition: 'border-color 0.15s',
+                boxSizing: 'border-box',
+                cursor: 'pointer'
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
+              onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+            >
+              <option value="">Select a customer</option>
+              {customers.map(user => (
+                <option key={user.id} value={user.id}>
+                  {user.name || user.username || `User ${user.id}`} {user.email ? `(${user.email})` : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Vehicle Type */}

@@ -1,4 +1,4 @@
-  // ...existing code...
+// ...existing code...
 // src/api/vehicleApi.ts
 import { axiosInstance } from "./api";
 
@@ -26,6 +26,7 @@ export const vehicleApi = {
     vehicle_type: number;
     vehicle_model: string;
     vehicle_description: string;
+    customer_id?: number | null;
   }) => {
     const resp = await axiosInstance.post(`/vehicles/create/`, payload);
     return resp.data;
@@ -48,6 +49,7 @@ export const vehicleApi = {
       vehicle_type: number;
       vehicle_model: string;
       vehicle_description: string;
+      customer_id?: number | null;
     }
   ) => {
     const resp = await axiosInstance.patch(`/vehicles/${id}/update/`, payload);

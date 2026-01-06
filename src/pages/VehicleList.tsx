@@ -1,7 +1,6 @@
 // src/pages/VehicleList.tsx
 import React, { useEffect, useState } from "react";
 import { vehicleApi } from "../api/vehicleApi";
-import { useRoleAccess } from "../utils/roleAccess";
 import { useNavigate } from "react-router-dom";
 
 interface Vehicle {
@@ -22,10 +21,11 @@ const VehicleList: React.FC = () => {
     null
   );
   const [page, setPage] = useState(1);
-  const { isSuperAdmin, isAdmin } = useRoleAccess();
+  // const { isSuperAdmin, isAdmin } = useRoleAccess();
   const navigate = useNavigate();
 
-  const hasAdminAccess = isSuperAdmin || isAdmin;
+  const hasAdminAccess = true; // Enabled for all authenticated users
+  const isSuperAdmin = true; // Enabled for all authenticated users
 
   useEffect(() => {
     fetchVehicles();
