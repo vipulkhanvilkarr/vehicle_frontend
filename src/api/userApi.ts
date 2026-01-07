@@ -52,6 +52,22 @@ export const userApi = {
   },
 
   /**
+   * GET /garages/customer-name/<id>/
+   */
+  getCustomerName: async (customerId: number | string) => {
+    const res = await axiosInstance.get(`/garages/customer-name/${customerId}/`);
+    return res.data;
+  },
+
+  /**
+   * GET /garages/user-name/<id>/
+   */
+  getUserName: async (userId: number | string) => {
+    const res = await axiosInstance.get(`/garages/user-name/${userId}/`);
+    return res.data;
+  },
+
+  /**
    * POST /garages/customers/create/
    */
   createGarageCustomer: async (payload: { name: string; mobile: string; address: string }) => {

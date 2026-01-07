@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { userApi } from "../api/userApi";
+import { useNavigate } from "react-router-dom";
 
 interface User {
   id: number;
   username: string;
+  name?: string;
 }
 
 const CreateGarage: React.FC = () => {
@@ -22,6 +23,7 @@ const CreateGarage: React.FC = () => {
   const [fetchingUsers, setFetchingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -31,14 +33,39 @@ const CreateGarage: React.FC = () => {
     try {
       setFetchingUsers(true);
       const data = await userApi.getAllUsers();
-      // Adjust based on typical API response structure
-      const userList = Array.isArray(data) ? data : (data.results || data.data || []);
-      setUsers(userList);
+      console.log("DEBUG: All Users Data:", data);
+      
+      let usersList: User[] = [];
+      if (Array.isArray(data)) {
+        usersList = data;
+      } else if (data && Array.isArray(data.results)) {
+        usersList = data.results;
+      } else if (data && Array.isArray(data.data)) {
+        usersList = data.data;
+      }
+      
+      setUsers(usersList);
     } catch (err) {
       console.error("Failed to fetch users", err);
       setError("Failed to load users for dropdown.");
     } finally {
       setFetchingUsers(false);
+    }
+  };
+
+  const handleUserChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const userId = e.target.value;
+    setFormData({ ...formData, user_id: userId });
+    setSelectedUserName(null);
+
+    if (userId) {
+      try {
+        const resp = await userApi.getUserName(userId);
+        console.log("DEBUG: User Name Response:", resp);
+        setSelectedUserName(resp.username || resp.name || resp.user_name || "Name found");
+      } catch (err) {
+        console.error("Failed to fetch user name detail", err);
+      }
     }
   };
 
@@ -145,16 +172,23 @@ const CreateGarage: React.FC = () => {
             <select 
               name="user_id"
               value={formData.user_id} 
-              onChange={handleChange} 
+              onChange={handleUserChange} 
               required 
               disabled={fetchingUsers}
               style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", boxSizing: "border-box" }}
             >
               <option value="">-- Select User --</option>
               {users.map(u => (
-                <option key={u.id} value={u.id}>{u.username}</option>
+                <option key={u.id} value={u.id}>
+                  {u.name || u.username || `User ${u.id}`}
+                </option>
               ))}
             </select>
+            {selectedUserName && (
+              <p style={{ marginTop: "8px", fontSize: "13px", color: "#38a169", fontWeight: "600" }}>
+                Confirmed User: {selectedUserName}
+              </p>
+            )}
           </div>
 
           {error && <p style={{ color: "#e53e3e", fontSize: "14px" }}>{error}</p>}

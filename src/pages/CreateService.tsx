@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { vehicleApi } from "../api/vehicleApi";
 import { serviceApi } from "../api/serviceApi";
+import { userApi } from "../api/userApi";
 
 interface Vehicle {
   id: number;
@@ -70,6 +71,19 @@ const CreateService: React.FC = () => {
         ...fromList,
         ...vehicleData
       };
+
+      // NEW: Fetch customer name explicitly if it's missing or "Not found"
+      const cId = merged.customer_id || merged.customer?.id || (merged as any).data?.customer_id;
+      if (cId) {
+        try {
+          const nameResp = await userApi.getCustomerName(cId);
+          console.log("DEBUG: Customer Name Response:", nameResp);
+          // Assuming resp format is { success: true, name: "..." } or similar
+          merged.customer_name = nameResp.name || nameResp.customer_name || merged.customer_name;
+        } catch (nameErr) {
+          console.error("Failed to fetch customer name detail", nameErr);
+        }
+      }
       
       setSelectedVehicle(merged);
     } catch (err: any) {
