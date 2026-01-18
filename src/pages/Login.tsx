@@ -31,6 +31,25 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    // Show a friendly message if redirected due to an expired session
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("expired") === "1" || localStorage.getItem("session_expired") === "1") {
+        setSessionExpired(true);
+        localStorage.removeItem("session_expired");
+        // remove the query param without reloading
+        if (window && window.history && window.history.replaceState) {
+          const cleanUrl = window.location.pathname + window.location.hash;
+          window.history.replaceState({}, "", cleanUrl);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     console.log("Login:", auth);
@@ -206,6 +225,19 @@ const Login: React.FC = () => {
               flexDirection: 'column', 
               gap: '24px' 
             }}>
+              {sessionExpired && (
+                <div style={{
+                  color: colors.error,
+                  background: '#FFF5F5',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  border: '1px solid #FECACA',
+                  marginBottom: '6px'
+                }}>
+                  Your session has expired. Please sign in again.
+                </div>
+              )}
               {/* Username Input */}
               <div>
                 <label style={{

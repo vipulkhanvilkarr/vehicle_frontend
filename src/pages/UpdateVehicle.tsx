@@ -50,18 +50,20 @@ const UpdateVehicle: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await vehicleApi.getById(id);
-      // Normalize values safely
+      const apiRes = await vehicleApi.getById(id);
+      // If API returns { success, data }, extract data
+      const data = apiRes && typeof apiRes === "object" && "data" in apiRes ? apiRes.data : apiRes;
       setVehicleNumber((data.vehicle_number || "").toString().toUpperCase());
-      // vehicle_type may be an object or id; handle both
-      const vt = data.vehicle_type;
-      if (typeof vt === "number") setVehicleType(vt);
-      else if (vt && typeof vt === "object" && "id" in vt) setVehicleType((vt as any).id);
-      else setVehicleType("");
-
+      // vehicle_type is an object with id and name
+      if (data.vehicle_type && typeof data.vehicle_type === "object" && "id" in data.vehicle_type) {
+        setVehicleType(data.vehicle_type.id);
+      } else if (typeof data.vehicle_type === "number") {
+        setVehicleType(data.vehicle_type);
+      } else {
+        setVehicleType("");
+      }
       setVehicleModel(data.vehicle_model || "");
       setVehicleDescription(data.vehicle_description || "");
-
       // validate initial vehicle number
       const vErr = validateVehicleNumber((data.vehicle_number || "").toString().toUpperCase());
       setVehicleNumberError(vErr);

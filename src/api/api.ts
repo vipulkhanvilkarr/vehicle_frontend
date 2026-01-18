@@ -40,6 +40,37 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+// Handle expired/invalid tokens globally
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    if (status === 401) {
+      // Token expired or invalid - clear tokens and redirect to login
+      console.warn("API: Received 401 - clearing tokens and redirecting to login");
+      try {
+        clearToken();
+        // Mark session expired so login page can show a friendly message
+        localStorage.setItem("session_expired", "1");
+      } catch (e) {
+        // ignore
+      }
+      // Redirect to login page (full reload ensures redux state resets)
+      if (typeof window !== "undefined") {
+        const currentPath = window.location.pathname;
+        if (currentPath !== "/login") {
+          window.location.href = "/login?expired=1";
+        } else {
+          // already on login - reload to clear any stale state
+          window.location.reload();
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+
 /** Auth API */
 export const authApi = {
   /**

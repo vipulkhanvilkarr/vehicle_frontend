@@ -24,6 +24,7 @@ const CreateService: React.FC = () => {
   const [intervalType, setIntervalType] = useState<string>("6"); // "3", "6", "12", "custom"
   const [customNextDate, setCustomNextDate] = useState("");
   const [intervalMonths, setIntervalMonths] = useState<number>(6);
+  const [serviceType, setServiceType] = useState<string>("PERIODIC");
   const [notes, setNotes] = useState("");
   
   const [loading, setLoading] = useState(false);
@@ -63,29 +64,29 @@ const CreateService: React.FC = () => {
       setError(null);
       const resp = await vehicleApi.getById(id);
       console.log("DEBUG: Vehicle Details Response:", resp);
-      
       const vehicleData = resp.data || resp;
-      
-      // Merge customer information if missing in detail but present in list
-      const merged = {
-        ...fromList,
-        ...vehicleData
-      };
 
-      // NEW: Fetch customer name explicitly if it's missing or "Not found"
-      const cId = merged.customer_id || merged.customer?.id || (merged as any).data?.customer_id;
-      if (cId) {
+      // Only use customer_id if present directly
+      let customer_id = vehicleData.customer_id || (fromList && fromList.customer_id) || null;
+      let customer_name = vehicleData.customer_name || (fromList && fromList.customer_name) || null;
+
+      // Fetch customer name if still missing
+      if (customer_id && (!customer_name || customer_name === "Not found")) {
         try {
-          const nameResp = await userApi.getCustomerName(cId);
+          const nameResp = await userApi.getCustomerName(customer_id);
           console.log("DEBUG: Customer Name Response:", nameResp);
-          // Assuming resp format is { success: true, name: "..." } or similar
-          merged.customer_name = nameResp.name || nameResp.customer_name || merged.customer_name;
+          customer_name = nameResp.name || nameResp.customer_name || customer_name;
         } catch (nameErr) {
           console.error("Failed to fetch customer name detail", nameErr);
         }
       }
-      
-      setSelectedVehicle(merged);
+
+      setSelectedVehicle({
+        ...fromList,
+        ...vehicleData,
+        customer_id,
+        customer_name,
+      });
     } catch (err: any) {
       console.error("Failed to fetch vehicle details", err);
       setError(`Failed to load vehicle details: ${err?.message || "Unknown error"}`);
@@ -94,22 +95,15 @@ const CreateService: React.FC = () => {
     }
   };
 
-  const calculateMonths = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 0;
-    
-    let months = (endDate.getFullYear() - startDate.getFullYear()) * 12;
-    months -= startDate.getMonth();
-    months += endDate.getMonth();
-    return months <= 0 ? 0 : months;
-  };
 
   const handleIntervalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setIntervalType(val);
     if (val !== "custom") {
       setIntervalMonths(Number(val));
+      setCustomNextDate(""); // clear custom date if not custom
+    } else {
+      setIntervalMonths(0); // clear months if custom
     }
   };
 
@@ -121,28 +115,38 @@ const CreateService: React.FC = () => {
     }
 
     let finalInterval = intervalMonths;
+    let nextServiceDate = undefined;
+    let payload: any = {
+      vehicle_id: selectedVehicle.id,
+      customer_id: selectedVehicle.customer_id || 0,
+      service_date: serviceDate,
+      notes: notes,
+      service_type: serviceType,
+    };
+
     if (intervalType === "custom") {
       if (!customNextDate) {
         setError("Please select a custom next service date");
         return;
       }
-      finalInterval = calculateMonths(serviceDate, customNextDate);
-      if (finalInterval <= 0) {
-        setError("Next service date must be at least 1 month after service date");
-        return;
-      }
+      nextServiceDate = customNextDate;
+      payload.next_service_date = nextServiceDate;
+      // Do NOT send service_interval_months for custom
+      delete payload.service_interval_months;
+    } else {
+      payload.service_interval_months = finalInterval;
+      // Do NOT send next_service_date for interval
+      delete payload.next_service_date;
     }
-    const effectiveCustomerId = 
-          selectedVehicle.customer_id || 
-          (selectedVehicle as any).customer?.id || 
-          (typeof selectedVehicle.customer === 'number' ? selectedVehicle.customer : 0) ||
-          (selectedVehicle as any).data?.customer_id || 
-          0;
 
-    if (!effectiveCustomerId || effectiveCustomerId === 0) {
-      setError("Unable to determine Customer ID for this vehicle. Please ensure the vehicle is correctly linked to a customer.");
+    if (!payload.customer_id || payload.customer_id === 0) {
+      setError(
+        "Unable to determine Customer ID for this vehicle. Please ensure the vehicle is correctly linked to a customer. (Debug: " +
+        JSON.stringify(selectedVehicle, null, 2) + ")"
+      );
       setLoading(false);
       return;
+      
     }
 
     setLoading(true);
@@ -150,17 +154,8 @@ const CreateService: React.FC = () => {
     setNotification(null);
 
     try {
-      const payload = {
-        vehicle_id: selectedVehicle.id,
-        customer_id: effectiveCustomerId,
-        service_date: serviceDate,
-        service_interval_months: finalInterval,
-        notes: notes,
-      };
-      
       const res = await serviceApi.create(payload);
       setNotification({ type: "success", message: res?.message || "Service record created successfully!" });
-      
       setTimeout(() => {
         setNotification(null);
         navigate("/services");
@@ -237,29 +232,39 @@ const CreateService: React.FC = () => {
           </div>
 
           <div>
-            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Service Interval *</label>
-            <select 
-                value={intervalType}
-                onChange={handleIntervalChange}
-                style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: intervalType === "custom" ? "12px" : "0" }}
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Service Type *</label>
+            <select
+              value={serviceType}
+              onChange={e => setServiceType(e.target.value)}
+              required
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
             >
-                <option value="3">3 Months</option>
-                <option value="6">6 Months</option>
-                <option value="12">12 Months</option>
-                <option value="custom">Custom Date</option>
+              <option value="PERIODIC">Periodic</option>
+              <option value="REPAIR">Repair</option>
             </select>
-
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>Service Interval *</label>
+            <select
+              value={intervalType}
+              onChange={handleIntervalChange}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: intervalType === "custom" ? "12px" : "0" }}
+              required
+            >
+              <option value="3">3 Months</option>
+              <option value="6">6 Months</option>
+              <option value="12">12 Months</option>
+              <option value="custom">Custom Date</option>
+            </select>
             {intervalType === "custom" && (
-                <div>
-                    <label style={{ display: "block", marginBottom: "8px", fontSize: "13px", color: "#666" }}>Next Service Date *</label>
-                    <input 
-                    type="date" 
-                    value={customNextDate} 
-                    onChange={e => setCustomNextDate(e.target.value)} 
-                    required 
-                    style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
-                    />
-                </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "8px", fontSize: "13px", color: "#666" }}>Next Service Date *</label>
+                <input
+                  type="date"
+                  value={customNextDate}
+                  onChange={e => setCustomNextDate(e.target.value)}
+                  required
+                  style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                />
+              </div>
             )}
           </div>
 
