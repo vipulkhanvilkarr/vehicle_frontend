@@ -109,12 +109,8 @@ const ServiceList: React.FC = () => {
     return list;
   }, [services, filterText, filterStatus, sortBy, sortDir]);
 
-  const getSortIndicator = (col: string) => (sortBy === col ? (sortDir === 'asc' ? '▲' : '▼') : '');
 
-  const toggleSort = (col: string) => {
-    if (sortBy === col) setSortDir(s => s === 'asc' ? 'desc' : 'asc');
-    else { setSortBy(col); setSortDir('asc'); }
-  };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
